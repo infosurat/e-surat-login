@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>e-Surat - Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="container">
+      <div class="brand">
+        <img src="https://www.kapuashulukab.go.id/home/public/assets/images/pages/pages_70Logo-KH-Baru.png" alt="Logo" class="logo-sm">
+        <h1>e-Surat</h1>
+      </div>
+      <div class="actions">
+        <button class="btn small" id="logoutBtn">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="cards">
+      <button class="card" id="btnMasuk">
+        <div class="icon">📥</div>
+        <div class="label">Surat Masuk</div>
+      </button>
+      <button class="card" id="btnKeluar">
+        <div class="icon">📤</div>
+        <div class="label">Surat Keluar</div>
+      </button>
+    </section>
+
+    <section class="form-area" id="formArea" style="display:none;">
+      <h2 id="formTitle">Form</h2>
+      <form id="suratForm">
+        <div class="grid">
+          <div class="field"><label>Nomor</label><input type="number" id="nomor" readonly></div>
+          <div class="field"><label>Nomor Surat</label><input type="text" id="nomorSurat" required></div>
+          <div class="field"><label>Tanggal Surat</label><input type="date" id="tanggalSurat" required></div>
+          <div class="field"><label>Hal</label><input type="text" id="hal" required></div>
+          <div class="field" id="tglTerimaKirimField"><label>Tanggal Terima/Kirim</label><input type="date" id="tanggalTerimaKirim" required></div>
+          <div class="field"><label id="asalTujuanLabel">Asal/Tujuan</label><input type="text" id="asalTujuan" required></div>
+        </div>
+        <div style="margin-top:12px;">
+          <button type="submit" class="btn">Simpan</button>
+          <button type="button" class="btn ghost" id="btnCancel">Batal</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="table-area">
+      <h3 id="tableTitle">Daftar Surat</h3>
+      <div class="table-wrap">
+        <table id="dataTable">
+          <thead>
+            <tr>
+              <th>Nomor</th>
+              <th>Nomor Surat</th>
+              <th>Tanggal Surat</th>
+              <th>Hal</th>
+              <th>Tgl Terima/Kirim</th>
+              <th>Asal/Tujuan</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+<script>
+// require login
+if(localStorage.getItem('loggedIn') !== 'true') {
+  window.location.href = 'index.html';
+}
+
+const btnMasuk = document.getElementById('btnMasuk');
+const btnKeluar = document.getElementById('btnKeluar');
+const formArea = document.getElementById('formArea');
+const formTitle = document.getElementById('formTitle');
+const suratForm = document.getElementById('suratForm');
+const dataTable = document.querySelector('#dataTable tbody');
+const tableTitle = document.getElementById('tableTitle');
+const nomorInput = document.getElementById('nomor');
+const asalTujuanLabel = document.getElementById('asalTujuanLabel');
+const btnCancel = document.getElementById('btnCancel');
+const logoutBtn = document.getElementById('logoutBtn');
+const tglTerimaKirimField = document.getElementById('tglTerimaKirimField');
+
+let mode = null; // 'masuk' or 'keluar'
+
+function loadData(modeKey) {
+  const raw = localStorage.getItem(modeKey);
+  return raw ? JSON.parse(raw) : [];
+}
+
+function saveData(modeKey, arr) {
+  localStorage.setItem(modeKey, JSON.stringify(arr));
+}
+
+function renderTable(modeKey) {
+  const arr = loadData(modeKey);
+  dataTable.innerHTML = '';
+  arr.forEach(item => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${item.nomor}</td>
+      <td>${item.nomorSurat}</td>
+      <td>${item.tanggalSurat}</td>
+      <td>${item.hal}</td>
+      <td>${item.tanggalTerimaKirim}</td>
+      <td>${item.asalTujuan}</td>
+      <td>
+        <button class="btn small ghost" data-action="delete" data-id="${item.nomor}">Hapus</button>
+      </td>
+    `;
+    dataTable.appendChild(tr);
+  });
+  tableTitle.textContent = modeKey === 'suratMasuk' ? 'Daftar Surat Masuk' : 'Daftar Surat Keluar';
+}
+
+// set auto nomor
+function nextNomor(modeKey) {
+  const arr = loadData(modeKey);
+  if(arr.length === 0) return 1;
+  return Math.max(...arr.map(x => Number(x.nomor))) + 1;
+}
+
+btnMasuk.addEventListener('click', ()=>{
+  mode = 'masuk';
+  formArea.style.display = 'block';
+  formTitle.textContent = 'Form Surat Masuk';
+  nomorInput.value = nextNomor('suratMasuk');
+  asalTujuanLabel.textContent = 'Asal Surat';
+  renderTable('suratMasuk');
+});
+
+btnKeluar.addEventListener('click', ()=>{
+  mode = 'keluar';
+  formArea.style.display = 'block';
+  formTitle.textContent = 'Form Surat Keluar';
+  nomorInput.value = nextNomor('suratKeluar');
+  asalTujuanLabel.textContent = 'Tujuan Surat';
+  renderTable('suratKeluar');
+});
+
+btnCancel.addEventListener('click', ()=>{
+  formArea.style.display = 'none';
+  suratForm.reset();
+});
+
+suratForm.addEventListener('submit', function(e){
+  e.preventDefault();
+  if(!mode) return alert('Pilih Surat Masuk atau Surat Keluar terlebih dahulu.');
+  const nomor = nomorInput.value;
+  const nomorSurat = document.getElementById('nomorSurat').value.trim();
+  const tanggalSurat = document.getElementById('tanggalSurat').value;
+  const hal = document.getElementById('hal').value.trim();
+  const tanggalTerimaKirim = document.getElementById('tanggalTerimaKirim').value;
+  const asalTujuan = document.getElementById('asalTujuan').value.trim();
+
+  const item = { nomor, nomorSurat, tanggalSurat, hal, tanggalTerimaKirim, asalTujuan };
+  const key = mode === 'masuk' ? 'suratMasuk' : 'suratKeluar';
+  const arr = loadData(key);
+  arr.push(item);
+  saveData(key, arr);
+  renderTable(key);
+  suratForm.reset();
+  nomorInput.value = nextNomor(key);
+});
+
+// delegate delete
+dataTable.addEventListener('click', function(e){
+  const btn = e.target.closest('button[data-action]');
+  if(!btn) return;
+  const action = btn.getAttribute('data-action');
+  const id = btn.getAttribute('data-id');
+  const key = mode === 'masuk' ? 'suratMasuk' : 'suratKeluar';
+  if(action === 'delete') {
+    let arr = loadData(key);
+    arr = arr.filter(x => String(x.nomor) !== String(id));
+    saveData(key, arr);
+    renderTable(key);
+  }
+});
+
+logoutBtn.addEventListener('click', function(){
+  localStorage.removeItem('loggedIn');
+  window.location.href = 'index.html';
+});
+
+// initial render show all (both) if desired
+renderTable('suratMasuk');
+renderTable('suratKeluar');
+</script>
+</body>
+</html>
